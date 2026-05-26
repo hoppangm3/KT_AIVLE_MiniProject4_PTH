@@ -1,42 +1,125 @@
-# KT_AIVLE_MiniProject4
+# 📚 걷기의 서재 (Walk & Study)
 
-# 🌐 Git-flow
+> AI가 책 표지를 생성해주는 독서 큐레이션 플랫폼
 
-- **main**: 프로젝트가 최종적으로 배포되는 브랜치
-- **develop**: 다음 출시 버전을 개발하는 브랜치
-- **feature**: 기능을 개발하는 브랜치
+KT AIVLE School 미니프로젝트 4차 — React + OpenAI API 기반 도서 추천 웹앱
 
-# 📌 Git branch 규칙
+---
 
-- 개인 작업은 꼭 feature 브랜치에서 하기
-- 모든 작업 시작 전 develop에서 pull 받은 후 feature 브랜치에서 작업 시작
-- 작업 완료 후 feature 브랜치에서 PR로 develop에 merge
-- 프로젝트 완료 후 main으로 merge
+## 🖼️ 프로젝트 소개
 
-# 📝 Feature Branch 네이밍
+**걷기의 서재**는 사용자가 책을 탐색하고, AI가 OpenAI DALL·E API를 활용해 각 책의 줄거리와 시각적 프롬프트를 기반으로 **고유한 표지 이미지를 자동 생성**해주는 웹 애플리케이션입니다.
 
-- feature/이름-기능제목#이슈번호
-- 예: feature/krong-login#1
-- develop merge 전 PR reviewers 팀원 1명 이상 설정 후 approve
-- PR 후 팀원 공지
+### 주요 기능
 
-# 🎯 Commit Convention
+| 기능 | 설명 |
+|------|------|
+| 📖 도서 목록 | 50권의 실제 도서 카드 형식으로 탐색 |
+| 🔍 도서 상세 | 줄거리, 저자, 조회수, 좋아요 확인 |
+| 🤖 AI 표지 생성 | DALL·E로 책 표지 자동 생성 (title + content + prompt 조합) |
+| ❤️ 좋아요 | 관심 도서 좋아요 기능 |
+| ✏️ 도서 등록/수정 | 새 도서 추가 및 기존 도서 수정 |
+| 🔐 로그인/회원가입 | 사용자 인증 화면 |
 
-- 커밋 메시지: #issue number + 깃모지 + 소문자 태그: 메시지
+---
 
-## Commit Tags
+## 🛠️ 기술 스택
 
-🎉 start: Start New Project [:tada:]  
-✨ feat: 새로운 기능 추가 [:sparkles:]  
-🐛 fix: 버그 수정 [:bug:]  
-🎨 design: CSS/UI 디자인 변경 [:art:]  
-♻️ refactor: 코드 리팩토링 [:recycle:]  
-🔧 settings: 설정 파일 변경 [:wrench:]  
-🗃️ comment: 주석 추가/변경 [:card_file_box:]  
-➕ dependency/plugin: 라이브러리/플러그인 추가 [:heavy_plus_sign:]  
-📝 docs: 문서 수정 [:memo:]  
-🔀 merge: 브랜치 병합 [:twisted_rightwards_arrows:]  
-🚀 deploy: 배포 [:rocket:]  
-🚚 rename: 파일/폴더명 수정/이동 [:truck:]  
-🔥 remove: 파일 삭제 [:fire:]  
-⏪️ revert: 이전 버전으로 롤백 [:rewind:]
+- **Frontend**: React 19, Vite
+- **UI Library**: MUI (Material UI) v5
+- **AI API**: OpenAI DALL·E (이미지 생성)
+- **상태 관리**: React useState / LocalStorage
+- **폰트**: tvN 즐거운 이야기체, Noto Serif KR, Inter
+
+---
+
+## 🚀 시작하기
+
+### 사전 요구사항
+
+- [Node.js](https://nodejs.org) 18 이상
+- OpenAI API 키 ([발급받기](https://platform.openai.com/api-keys))
+
+### 설치 및 실행
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/hoppangm3/KT_AIVLE_MiniProject4_PTH.git
+cd KT_AIVLE_MiniProject4_PTH
+
+# 2. 의존성 설치
+npm install
+
+# 3. API 키 설정 (아래 참고)
+
+# 4. 개발 서버 실행
+npm run dev
+```
+
+브라우저에서 `http://localhost:5173` 접속
+
+### API 키 설정
+
+`public/api_key.txt` 파일을 직접 생성하고 아래 내용을 입력하세요:
+
+```
+OPENAI_API_KEY=sk-proj-여기에_API_키_입력
+```
+
+> ⚠️ `public/api.txt`, `public/api_key.txt` 파일은 보안상 `.gitignore`에 포함되어 있습니다. 직접 생성해야 합니다.
+
+---
+
+## 📁 프로젝트 구조
+
+```
+mini4/
+├── public/
+│   └── api_key.txt          # API 키 (gitignore됨, 직접 생성 필요)
+├── src/
+│   ├── components/
+│   │   └── Header.jsx       # 상단 네비게이션
+│   ├── screens/
+│   │   ├── Home.jsx         # 홈 화면
+│   │   ├── BookListScreen.jsx   # 도서 목록
+│   │   ├── BookDetailScreen.jsx # 도서 상세
+│   │   ├── BookFormScreen.jsx   # 도서 등록/수정
+│   │   ├── LoginSignup.jsx      # 로그인/회원가입
+│   │   └── HowToUse.jsx         # 사용 방법
+│   ├── App.jsx              # 라우팅 및 상태 관리
+│   ├── config.js            # API 설정
+│   ├── index.css            # 전역 스타일 및 폰트
+│   └── main.jsx             # 진입점
+├── db.json                  # 도서 데이터 (50권)
+├── index.html
+├── package.json
+└── vite.config.js
+```
+
+---
+
+## 🔄 다른 기기에서 이어서 작업하기
+
+```bash
+# 최신 코드 받기
+git pull origin main
+
+# 작업 후 저장
+git add .
+git commit -m "작업 내용 설명"
+git push origin main
+```
+
+---
+
+## 👥 팀원
+
+| 이름 | GitHub |
+|------|--------|
+| hoppangm3 | [@hoppangm3](https://github.com/hoppangm3) |
+
+---
+
+## 📝 라이선스
+
+KT AIVLE School 미니프로젝트 과제용
