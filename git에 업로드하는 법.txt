@@ -1,0 +1,18 @@
+Git에 업로드 할 폴더 우클릭 - git bash 열기
+
+git init
+
+git remote add origin https://github.com/username/repo.git <- 본인걸로 변경
+
+git remote -v		 <- 주소 맞는지 확인
+
+git branch -M main  
+
+git add .
+
+git status 			<- add된 파일 확인
+
+git commit -m "v1"	<- 코드에 대한 메시지 작성
+
+git push origin main	<- 업로드(push)
+

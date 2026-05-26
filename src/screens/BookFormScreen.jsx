@@ -3,13 +3,15 @@ import { Container, Paper, Box, Typography, TextField, Button, Grid, FormHelperT
 import SaveIcon from '@mui/icons-material/Save'
 import CancelIcon from '@mui/icons-material/Cancel'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import { BookCover } from './BookListScreen'
+import BookCover from '../components/BookCover'
+import { aiService } from '../services/aiService'
 
 export default function BookFormScreen({ book, userApiKey, onSaveApiKey, onSave, onNavigate }) {
   const isEditMode = !!book
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [content, setContent] = useState('')
+  const [prompt, setPrompt] = useState('')
   const [errors, setErrors] = useState({ title: false, content: false })
 
   // AI Cover States
@@ -30,11 +32,13 @@ export default function BookFormScreen({ book, userApiKey, onSaveApiKey, onSave,
       setTitle(book.title || '')
       setAuthor(book.author || '')
       setContent(book.content || '')
+      setPrompt(book.prompt || '')
       setCoverImageUrl(book.coverImageUrl || '')
     } else {
       setTitle('')
       setAuthor('')
       setContent('')
+      setPrompt('')
       setCoverImageUrl('')
     }
   }, [book, isEditMode])
@@ -55,69 +59,12 @@ export default function BookFormScreen({ book, userApiKey, onSaveApiKey, onSave,
     setGenSuccess(false)
 
     try {
-      const prompt = `Create a beautiful, abstract artistic book cover for a book titled "${title}". Book description: ${content}. Art style: professional digital art, high quality, oil paint details. Do NOT write any text or titles on the image.`
-
-      // Map selected resolution to OpenAI API quality parameter
-      let apiQuality = 'medium'
-      if (resolution === '960') apiQuality = 'low'
-      else if (resolution === '1280') apiQuality = 'medium'
-      else if (resolution === '1920' || resolution === '2046') apiQuality = 'high'
-
-      const body = {
-        model: 'gpt-image-2',
-        prompt,
-        n: 1,
-        size: size,
-        quality: apiQuality,
-        output_format: 'png'
-      }
-
-      let res = await fetch('https://api.openai.com/v1/images/generations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify(body)
+      const compressedSrc = await aiService.generateBookCover(title, content, prompt, apiKey, {
+        model,
+        size,
+        resolution
       })
-
-      let data
-      if (!res.ok) {
-        let errBody
-        try { errBody = await res.json() } catch { errBody = await res.text() }
-        const errMsg = errBody?.error?.message || String(errBody)
-
-        // Try alternate endpoint if 405 error occurs
-        if (res.status === 405 || /Invalid method/i.test(errMsg)) {
-          const altRes = await fetch('https://api.openai.com/v1/images/generate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey.trim()}`
-            },
-            body: JSON.stringify(body)
-          })
-
-          if (!altRes.ok) {
-            let altErr
-            try { altErr = await altRes.json() } catch { altErr = await altRes.text() }
-            throw new Error(altErr?.error?.message || String(altErr) || 'OpenAI API 오류가 발생했습니다.')
-          }
-          data = await altRes.json()
-        } else {
-          throw new Error(errMsg || 'OpenAI API 오류가 발생했습니다.')
-        }
-      } else {
-        data = await res.json()
-      }
-
-      const b64Json = data.data?.[0]?.b64_json
-      if (!b64Json) {
-        throw new Error('응답데이터에서 이미지 문자열(b64_json)을 찾을 수 없습니다.')
-      }
-
-      const imageSrc = `data:image/png;base64,${b64Json}`
-      setCoverImageUrl(imageSrc)
+      setCoverImageUrl(compressedSrc)
       setGenSuccess(true)
 
     } catch (err) {
@@ -151,7 +98,8 @@ export default function BookFormScreen({ book, userApiKey, onSaveApiKey, onSave,
       title: title.trim(),
       author: author.trim() || '작자 미상',
       content: content.trim(),
-      coverImageUrl: coverImageUrl, // Save cover URL state
+      prompt: prompt.trim(),
+      coverImageUrl: coverImageUrl,
       updatedAt: new Date().toISOString(),
     }
 
@@ -232,6 +180,30 @@ export default function BookFormScreen({ book, userApiKey, onSaveApiKey, onSave,
                     InputProps={{ style: { borderRadius: '12px' } }}
                   />
                   {errors.content && <FormHelperText error sx={{ ml: 1 }}>작품 본문 내용은 필수 입력 항목입니다.</FormHelperText>}
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mb: 1 }}>
+                    <AutoAwesomeIcon sx={{ fontSize: '1rem', color: 'primary.main' }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                      AI 표지 이미지 생성 프롬프트
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      (비워두면 본문 내용 기반으로 자동 생성)
+                    </Typography>
+                  </Box>
+                  <TextField
+                    label="AI 이미지 프롬프트"
+                    variant="outlined"
+                    fullWidth
+                    multiline
+                    rows={3}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="예: 어두운 밤하늘 아래 외로운 등대가 빛을 내뿜는 장면. 수채화 스타일, 파란색 계열의 차분한 색감."
+                    InputProps={{ style: { borderRadius: '12px' } }}
+                    helperText="오른쪽 패널에서 'AI 표지 생성' 버튼을 누르면 이 프롬프트로 이미지를 생성합니다."
+                  />
                 </Grid>
               </Grid>
             </Grid>

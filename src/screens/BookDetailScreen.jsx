@@ -7,29 +7,28 @@ import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
-import { BookCover } from './BookListScreen'
-import { API_BASE_URL } from '../config'
+import BookCover from '../components/BookCover'
+import { apiService } from '../services/apiService'
+import { aiService } from '../services/aiService'
 
 export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onNavigate, onDelete, onUpdateBook, isOfflineMode }) {
   const [book, setBook] = useState(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
   const [apiKey, setApiKey] = useState(userApiKey || '')
-  
+
   // AI Generation States
   const [genLoading, setGenLoading] = useState(false)
   const [genError, setGenError] = useState('')
   const [genSuccess, setGenSuccess] = useState(false)
-  
+
   // Custom API Gateway Options
   const [model, setModel] = useState('gpt-image-2')
-  const [size, setSize] = useState('1024x1536')       // '1024x1536', '1024x1024'
-  const [resolution, setResolution] = useState('1280')       // '960', '1280', '1920', '2046'
-  
+  const [size, setSize] = useState('1024x1536')
+  const [resolution, setResolution] = useState('1280')
+
   // Delete Dialog state
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
-
-
 
   // 1. Fetch Book Details on mount and Increment Views
   useEffect(() => {
@@ -44,27 +43,28 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
           const targetBook = localBooks.find(b => b.id === bookId)
           if (!targetBook) throw new Error('도서를 찾을 수 없습니다.')
 
-          const newViews = (targetBook.views || 0) + 1
-          const updatedBook = { ...targetBook, views: newViews }
-          
+          // book_images에서 이미지도 복원
+          const savedImages = JSON.parse(localStorage.getItem('book_images') || '{}')
+          const fullBook = savedImages[targetBook.id]
+            ? { ...targetBook, coverImageUrl: savedImages[targetBook.id] }
+            : targetBook
+
+          const newViews = (fullBook.views || 0) + 1
+          const updatedBook = { ...fullBook, views: newViews }
+
           if (onUpdateBook) {
             onUpdateBook(bookId, { views: newViews })
           }
           setBook(updatedBook)
         } else {
-          // REST API Mode: fetch from json-server
-          const res = await fetch(`${API_BASE_URL}/${bookId}`)
-          if (!res.ok) throw new Error('도서 정보를 가져올 수 없습니다.')
-          const data = await res.json()
+          // REST API Mode: fetch from json-server using service
+          const data = await apiService.getBookById(bookId)
           setBook(data)
-          
-          // Auto-increment view count
+
+          // Auto-increment view count using service
           const newViews = (data.views || 0) + 1
-          await fetch(`${API_BASE_URL}/${bookId}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ views: newViews })
-          })
+          await apiService.updateBook(bookId, { views: newViews })
+          
           setBook(prev => ({ ...prev, views: newViews }))
           if (onUpdateBook) {
             onUpdateBook(bookId, { views: newViews })
@@ -84,7 +84,7 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
     if (!book || liked) return
     try {
       const newLikes = (book.likes || 0) + 1
-      
+
       if (isOfflineMode) {
         if (onUpdateBook) {
           onUpdateBook(bookId, { likes: newLikes })
@@ -92,17 +92,11 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
         setBook(prev => ({ ...prev, likes: newLikes }))
         setLiked(true)
       } else {
-        const res = await fetch(`${API_BASE_URL}/${bookId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ likes: newLikes })
-        })
-        if (res.ok) {
-          setBook(prev => ({ ...prev, likes: newLikes }))
-          setLiked(true)
-          if (onUpdateBook) {
-            onUpdateBook(bookId, { likes: newLikes })
-          }
+        await apiService.updateBook(bookId, { likes: newLikes })
+        setBook(prev => ({ ...prev, likes: newLikes }))
+        setLiked(true)
+        if (onUpdateBook) {
+          onUpdateBook(bookId, { likes: newLikes })
         }
       }
     } catch (err) {
@@ -116,107 +110,37 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
       setGenError('OpenAI API Key를 입력해 주세요.')
       return
     }
-    
+
     // Save API key globally in App state
     onSaveApiKey(apiKey)
-    
+
     setGenLoading(true)
     setGenError('')
     setGenSuccess(false)
 
     try {
-      // Build Prompt combining title and content
-      const prompt = `Create a beautiful, abstract artistic book cover for a book titled "${book.title}". Book description: ${book.content}. Art style: professional digital art, high quality, oil paint details. Do NOT write any text or titles on the image.`
-
-      let endpoint = 'https://api.openai.com/v1/images/generations'
-      
-      // Map selected resolution to OpenAI API quality parameter
-      let apiQuality = 'medium'
-      if (resolution === '960') apiQuality = 'low'
-      else if (resolution === '1280') apiQuality = 'medium'
-      else if (resolution === '1920' || resolution === '2046') apiQuality = 'high'
-
-      const requestBody = {
-        model: 'gpt-image-2',
-        prompt: prompt,
-        n: 1,
-        size: size,
-        quality: apiQuality,
-        output_format: 'png'
-      }
-
-      let res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey.trim()}`
-        },
-        body: JSON.stringify(requestBody)
-      })
-
-      let data
-      if (!res.ok) {
-        let errBody
-        try { errBody = await res.json() } catch { errBody = await res.text() }
-        const errMsg = errBody?.error?.message || String(errBody)
-
-        // 만약 405 에러(Method Not Allowed)나 Invalid method 에러가 나면 대체 엔드포인트(/v1/images/generate)로 재시도
-        if (res.status === 405 || /Invalid method/i.test(errMsg)) {
-          const altEndpoint = 'https://api.openai.com/v1/images/generate'
-          const altRes = await fetch(altEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey.trim()}`
-            },
-            body: JSON.stringify(requestBody)
-          })
-
-          if (!altRes.ok) {
-            let altErr
-            try { altErr = await altRes.json() } catch { altErr = await altRes.text() }
-            throw new Error(altErr?.error?.message || String(altErr) || 'OpenAI API 오류가 발생했습니다.')
-          }
-          data = await altRes.json()
-        } else {
-          throw new Error(errMsg || 'OpenAI API 오류가 발생했습니다.')
-        }
-      } else {
-        data = await res.json()
-      }
-      // Extract base64 image string from response
-      const b64Json = data.data?.[0]?.b64_json
-      if (!b64Json) {
-        throw new Error('응답데이터에서 이미지 문자열(b64_json)을 찾을 수 없습니다.')
-      }
-
-      const imageSrc = `data:image/png;base64,${b64Json}`
+      const compressedSrc = await aiService.generateBookCover(
+        book.title, 
+        book.content, 
+        book.prompt, 
+        apiKey, 
+        { model, size, resolution }
+      )
 
       // Save generated image URL based on offline/online mode
       if (isOfflineMode) {
-        // LocalStorage Mode: Save locally and trigger cover update in parent state
         if (onUpdateBook) {
-          onUpdateBook(bookId, { coverImageUrl: imageSrc })
+          onUpdateBook(bookId, { coverImageUrl: compressedSrc })
         }
-        setBook(prev => ({ ...prev, coverImageUrl: imageSrc }))
+        setBook(prev => ({ ...prev, coverImageUrl: compressedSrc }))
         setGenSuccess(true)
       } else {
-        // REST API Mode: PATCH to json-server and notify parent to reload
-        const patchRes = await fetch(`${API_BASE_URL}/${bookId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ coverImageUrl: imageSrc })
-        })
-
-        if (patchRes.ok) {
-          if (onUpdateBook) {
-            onUpdateBook(bookId, { coverImageUrl: imageSrc })
-          }
-          setBook(prev => ({ ...prev, coverImageUrl: imageSrc }))
-          setGenSuccess(true)
-        } else {
-          throw new Error('생성된 이미지를 데이터베이스에 저장하는 데 실패했습니다.')
+        await apiService.updateBook(bookId, { coverImageUrl: compressedSrc })
+        if (onUpdateBook) {
+          onUpdateBook(bookId, { coverImageUrl: compressedSrc })
         }
+        setBook(prev => ({ ...prev, coverImageUrl: compressedSrc }))
+        setGenSuccess(true)
       }
 
     } catch (err) {
@@ -261,8 +185,8 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
   return (
     <Container maxWidth="lg" className="fade-in-screen" sx={{ py: 6 }}>
       {/* Back button */}
-      <Button 
-        startIcon={<ArrowBackIcon />} 
+      <Button
+        startIcon={<ArrowBackIcon />}
         onClick={() => onNavigate('list')}
         sx={{ mb: 4, color: 'text.secondary' }}
       >
@@ -275,7 +199,7 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
           <Box className={genLoading ? 'generating-cover' : ''} sx={{ borderRadius: '16px', overflow: 'hidden', border: '1px solid', borderColor: 'divider', boxShadow: '0 8px 24px rgba(133, 83, 0, 0.15)', bgcolor: 'background.paper' }}>
             <BookCover title={book.title} author={book.author} imageUrl={book.coverImageUrl} height={420} />
           </Box>
-          
+
           {/* Quick Info & Actions */}
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -283,11 +207,11 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
                 <VisibilityIcon sx={{ color: 'text.secondary' }} />
                 <Typography variant="body2" color="text.secondary">{book.views || 0} 조회</Typography>
               </Box>
-              <Button 
-                onClick={handleLike} 
+              <Button
+                onClick={handleLike}
                 startIcon={liked ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
                 disabled={liked}
-                sx={{ 
+                sx={{
                   color: liked ? 'error.main' : 'text.secondary',
                   textTransform: 'none',
                   '&:disabled': { color: 'error.main' }
@@ -296,23 +220,23 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
                 {book.likes || 0} 좋아요
               </Button>
             </Box>
-            
+
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button 
-                variant="outlined" 
-                color="secondary" 
+              <Button
+                variant="outlined"
+                color="secondary"
                 size="small"
-                startIcon={<EditIcon />} 
+                startIcon={<EditIcon />}
                 onClick={() => onNavigate('write', book.id)}
                 sx={{ borderRadius: '12px' }}
               >
                 수정
               </Button>
-              <Button 
-                variant="outlined" 
-                color="error" 
+              <Button
+                variant="outlined"
+                color="error"
                 size="small"
-                startIcon={<DeleteIcon />} 
+                startIcon={<DeleteIcon />}
                 onClick={() => setOpenDeleteDialog(true)}
                 sx={{ borderRadius: '12px' }}
               >
@@ -332,7 +256,7 @@ export default function BookDetailScreen({ bookId, userApiKey, onSaveApiKey, onN
             <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main', mb: 3 }}>
               {book.author} 작가
             </Typography>
-            
+
             <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', minHeight: '120px', fontSize: '1.05rem', color: 'text.primary' }}>
               {book.content}
             </Typography>

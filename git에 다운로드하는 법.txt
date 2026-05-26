@@ -1,0 +1,7 @@
+git remote add origin "내 주소"
+git remote add project "용진님 주소"
+
+git remote -v		<- 알맞게 나오는지 확인
+
+git pull project main	<- 다운로드(pull)
+(git push origin main	<- 업로드(push))
