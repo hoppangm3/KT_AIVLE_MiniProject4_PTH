@@ -1,0 +1,73 @@
+@font-face {
+  font-family: 'tvNEnjoystories';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_two@1.0/OTEnjoystoriesBA.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Global styles for '걷기가 서재' */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Outfit', 'Noto Serif KR', serif;
+  background: #f9f9ff; /* Paws & Paths light background */
+  color: #151c27; /* Rich dark charcoal text */
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar for a premium look */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f0f3ff;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Base animations */
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(133, 83, 0, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(133, 83, 0, 0.6);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(133, 83, 0, 0.3);
+    transform: scale(1);
+  }
+}
+
+.generating-cover {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* Fade-in animation for page transitions */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-screen {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+*.env
+public/api.txt
+public/api_key.txt
+api_key.txt
